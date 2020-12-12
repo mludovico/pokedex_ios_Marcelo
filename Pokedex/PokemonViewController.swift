@@ -13,8 +13,12 @@ class PokemonViewController: UIViewController {
     @IBOutlet var numberLabel: UILabel!
     @IBOutlet var type1Label: UILabel!
     @IBOutlet var type2Label: UILabel!
-    var pokemon: Pokemon!
+    @IBOutlet var catchButton: UIButton!
+    @IBOutlet var spriteImage: UIImageView!
     
+    var pokemon: Pokemon!
+    let key = "caughtList"
+
     override func viewDidLoad() {
         
         type1Label.text = ""
@@ -34,10 +38,26 @@ class PokemonViewController: UIViewController {
             do{
                 let pokemonData = try JSONDecoder().decode(PokemonData.self, from: data)
                 DispatchQueue.main.async {
-                    
-                    self.nameLabel.text = self.pokemon.name
+                    if UserDefaults.standard.array(forKey: self.key) == nil {
+                        UserDefaults.standard.set([String](), forKey: self.key)
+                    }
+                    let a:Array = UserDefaults.standard.array(forKey: self.key)!
+                    if a.contains(where: { $0 as! String == self.pokemon.name }) {
+                        self.pokemon.caught = true
+                    }
+                    else{
+                        self.pokemon.caught = false
+                    }
+                    self.nameLabel.text = self.pokemon.name.prefix(1).uppercased() + self.pokemon.name.dropFirst()
+                    let spriteUrl = URL(string: pokemonData.sprites.other.artwork.front_default)!
+                    do{
+                        let data = try Data(contentsOf: spriteUrl)
+                        self.spriteImage.image = UIImage(data: data)
+                    }catch let spriteError{
+                        print(spriteError)
+                    }
                     self.numberLabel.text = String(format: "#%03d", pokemonData.id)
-                    for typeEntry in pokemonData.type {
+                    for typeEntry in pokemonData.types {
                         if typeEntry.slot == 1 {
                             self.type1Label.text = typeEntry.type.name
                         }
@@ -45,12 +65,36 @@ class PokemonViewController: UIViewController {
                             self.type2Label.text = typeEntry.type.name
                         }                        
                     }
+                    
+                    self.catchButton.setTitle(self.pokemon.caught ? "Release" : "Catch!", for: .normal)
                 }
             }catch let error {
                 print("\(error)")
             }
             
-            }.resume()
+        }.resume()
     }
+    
+    @IBAction func toggleCatch() {
+        var newList = [Any]()
+        newList = UserDefaults.standard.array(forKey: key) ?? [String]()
+        let currentlyCaught = newList.contains(where: { $0 as! String == pokemon.name})
+        if currentlyCaught {
+            newList.remove(at: newList.firstIndex(where: { $0 as! String == pokemon.name })!)
+        }
+        else {
+            newList.append(pokemon.name)
+        }
+        UserDefaults.standard.set(newList, forKey: key)
+        
+        pokemon.caught = !currentlyCaught
+        if pokemon.caught {
+            catchButton.setTitle("Release", for: .normal)
+        }
+        else{
+            catchButton.setTitle("Catch!", for: .normal)
+        }
+    }
+    
     
 }
